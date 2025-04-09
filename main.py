@@ -14,17 +14,26 @@ load_dotenv()
 
 # Configuração da aplicação
 ACCESS_TOKEN = os.getenv("ACCESS_TOKEN")
-STAMMER_API_KEY = os.getenv("STAMMER_API_KEY")
+SIMPLIFIQUE_API_KEY = os.getenv("SIMPLIFIQUE_API_KEY", "")  # Token padrão
 ALLOWED_CHATBOT_UUIDS = os.getenv("ALLOWED_CHATBOT_UUIDS", "").split(",")
 BASE_USER_KEY = os.getenv("BASE_USER_KEY", "default_user")
 PORT = int(os.getenv("PORT", 8000))
 
-# URL da API do Stammer
-STAMMER_API_URL = "https://app.simplifique.ai/pt/chatbot/api/v1/message/"
+# Mapeamento de chatbot_uuid para tokens específicos (formato: uuid1:token1,uuid2:token2)
+CHATBOT_TOKENS_MAP = {}
+chatbot_tokens_str = os.getenv("CHATBOT_TOKENS_MAP", "")
+if chatbot_tokens_str:
+    for mapping in chatbot_tokens_str.split(","):
+        if ":" in mapping:
+            uuid, token = mapping.split(":", 1)
+            CHATBOT_TOKENS_MAP[uuid.strip()] = token.strip()
+
+# URL da API do Simplifique
+SIMPLIFIQUE_API_URL = "https://app.simplifique.ai/pt/chatbot/api/v1/message/"
 
 # Criação do app FastAPI
-app = FastAPI(title="OpenAI to Stammer Adapter",
-              description="Adaptador que converte chamadas da API OpenAI para a API do Stammer.ai")
+app = FastAPI(title="OpenAI to Simplifique Adapter",
+              description="Adaptador que converte chamadas da API OpenAI para a API do Simplifique.ai")
 
 # Modelos de dados para a API
 class Message(BaseModel):
@@ -93,7 +102,16 @@ async def chat_completions(
     # Gerar um identificador único para a requisição/usuário
     user_key = f"{BASE_USER_KEY}_{uuid.uuid4().hex[:8]}"
     
-    # Preparar a requisição para o Stammer
+    # Determinar qual token da API usar - específico para o chatbot ou token padrão
+    api_token = CHATBOT_TOKENS_MAP.get(request_data.chatbot_uuid, SIMPLIFIQUE_API_KEY)
+    
+    if not api_token:
+        raise HTTPException(
+            status_code=500, 
+            detail="Não foi encontrado token de API para este chatbot e não há token padrão configurado"
+        )
+    
+    # Preparar a requisição para o Simplifique
     # Inclui parâmetros obrigatórios e opcionais conforme documentação
     stammer_payload = {
         "chatbot_uuid": request_data.chatbot_uuid,
@@ -112,17 +130,17 @@ async def chat_completions(
         stammer_payload["custom_base_system_prompt"] = custom_base_prompt
     
     headers = {
-        "Authorization": f"Token {STAMMER_API_KEY}",
+        "Authorization": f"Token {api_token}",
         "Content-Type": "application/json"
     }
     
     # Log para debug
-    print(f"Enviando para Stammer: {json.dumps(stammer_payload)}")
+    print(f"Enviando para Simplifique: {json.dumps(stammer_payload)}")
     
     try:
-        # Fazer a requisição para a API do Stammer
+        # Fazer a requisição para a API do Simplifique
         response = requests.post(
-            STAMMER_API_URL,
+            SIMPLIFIQUE_API_URL,
             json=stammer_payload,
             headers=headers
         )
@@ -132,7 +150,7 @@ async def chat_completions(
         
         # Obter a resposta
         stammer_response = response.json()
-        print(f"Resposta do Stammer: {json.dumps(stammer_response)}")
+        print(f"Resposta do Simplifique: {json.dumps(stammer_response)}")
         
         # Extrair a resposta do assistente conforme documentação
         # A resposta está em stammer_response["data"]["answer"]
@@ -167,7 +185,7 @@ async def chat_completions(
         return JSONResponse(content=openai_format_response)
         
     except requests.exceptions.RequestException as e:
-        print(f"Erro na comunicação com a API do Stammer: {str(e)}")
+        print(f"Erro na comunicação com a API do Simplifique: {str(e)}")
         
         # Se recebemos uma resposta com código de erro, incluir detalhes
         if hasattr(e, 'response') and e.response is not None:
@@ -181,7 +199,7 @@ async def chat_completions(
             raise HTTPException(status_code=status_code, detail=error_detail)
         else:
             # Erro genérico de comunicação
-            raise HTTPException(status_code=502, detail={"error": "Erro ao comunicar com a API do Stammer"})
+            raise HTTPException(status_code=502, detail={"error": "Erro ao comunicar com a API do Simplifique"})
 
 # Rota de verificação de saúde para o Railway
 @app.get("/health")
