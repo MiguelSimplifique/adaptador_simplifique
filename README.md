@@ -1,14 +1,15 @@
-# Adaptador OpenAI → Stammer
+# Adaptador OpenAI → Simplifique
 
-Este projeto implementa um servidor intermediário (adaptador) que simula a API da OpenAI (`/v1/chat/completions`) e redireciona as requisições para a API do **Stammer.ai**, convertendo os formatos e autenticando as chamadas.
+Este projeto implementa um servidor intermediário (adaptador) que simula a API da OpenAI (`/v1/chat/completions`) e redireciona as requisições para a API do **Simplifique.ai**, convertendo os formatos e autenticando as chamadas.
 
 ## Funcionalidades
 
 - Expõe um endpoint que simula a API OpenAI de chat completions
 - Autentica as requisições com um token privado
 - Valida os UUIDs dos chatbots permitidos
-- Converte o formato da requisição OpenAI para o formato Stammer
-- Converte a resposta Stammer para o formato OpenAI
+- **Suporta múltiplas subcontas com tokens diferentes**
+- Converte o formato da requisição OpenAI para o formato Simplifique
+- Converte a resposta Simplifique para o formato OpenAI
 - Pronto para deploy no Railway
 
 ## Pré-requisitos
@@ -29,8 +30,9 @@ Este projeto implementa um servidor intermediário (adaptador) que simula a API 
    ```
 4. Configure suas variáveis de ambiente no arquivo `.env`:
    - `ACCESS_TOKEN`: Token para autenticação das chamadas ao adaptador
-   - `STAMMER_API_KEY`: Token usado para autenticar no Stammer.ai
+   - `SIMPLIFIQUE_API_KEY`: Token padrão usado para autenticar no Simplifique.ai (usado quando não há token específico)
    - `ALLOWED_CHATBOT_UUIDS`: Lista de `chatbot_uuid` válidos (separados por vírgula)
+   - `CHATBOT_TOKENS_MAP`: Mapeamento de UUIDs para tokens específicos (formato: uuid1:token1,uuid2:token2)
    - `BASE_USER_KEY`: Valor base ou fixo para o campo `user_key`
    - `PORT`: Porta para rodar no Railway (default: 8000)
 
@@ -81,6 +83,8 @@ Este projeto está configurado para ser facilmente implantado no Railway:
 
 ## Notas
 
-- Apenas a última mensagem do usuário é enviada para o Stammer
+- Apenas a última mensagem do usuário é enviada para o Simplifique
 - As mensagens de sistema (role: "system") são ignoradas
-- O parâmetro `user_key` enviado ao Stammer é gerado com base no `BASE_USER_KEY` + um identificador único
+- O parâmetro `user_key` enviado ao Simplifique é gerado com base no `BASE_USER_KEY` + um identificador único
+- Você pode configurar tokens diferentes para cada chatbot usando o mapeamento em `CHATBOT_TOKENS_MAP`
+- Se um chatbot não tiver um token específico mapeado, o sistema usará o token padrão em `SIMPLIFIQUE_API_KEY`
