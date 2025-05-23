@@ -91,7 +91,7 @@ def get_requests_session():
         total=3,
         backoff_factor=0.7,
         status_forcelist=[500, 502, 503, 504],
-        method_whitelist=["POST"]
+        allowed_methods=["POST"]   # <- Aqui está a correção!
     )
     adapter = HTTPAdapter(max_retries=retry)
     session.mount('https://', adapter)
@@ -206,6 +206,7 @@ if __name__ == "__main__":
     import uvicorn
     logging.info(f"Iniciando servidor na porta {PORT}")
     uvicorn.run("main:app", host="0.0.0.0", port=PORT, reload=True)
+
 
 
 
